@@ -1,0 +1,8 @@
+.git
+.github
+*.log
+cromwell-executions/
+cromwell-workflow-logs/
+data/
+temp/
+**/*.ipynb_checkpoints

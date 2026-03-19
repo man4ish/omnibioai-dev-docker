@@ -1,0 +1,51 @@
+name: Build and Validate Dev Environment
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'Dockerfile'
+      - 'requirements.txt'
+      - 'run_ai_dev.sh'
+      - '.github/workflows/build-dev-env.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Dockerfile'
+      - 'requirements.txt'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          ignore: DL3008 # Ignore 'pin versions in apt-get' to allow security updates
+
+  build-and-test:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Load (Local Check)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true # Loads the image into the local Docker daemon for testing
+          tags: omnibioai-dev-env:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify Environment (No-GPU Mock)
+        run: |
+          # Test Python and R stack without requiring a physical GPU
+          docker run --rm -e CI=true omnibioai-dev-env:test python3 -c "import torch; print(f'PyTorch {torch.__version__} loaded'); import scanpy; print('Scanpy OK')"
+          docker run --rm omnibioai-dev-env:test R -e "library(Seurat); print('Seurat OK')"
+          docker run --rm omnibioai-dev-env:test mysql --version
