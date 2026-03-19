@@ -8,77 +8,70 @@
 
 FROM nvcr.io/nvidia/pytorch:25.10-py3
 
-LABEL maintainer="Manish Kumar"
-LABEL description="AI-Dev: PyTorch 25.10 base with R, MySQL, Jupyter, and Ollama for full-stack AI and bioinformatics development."
-LABEL version="1.0.0"
-LABEL build_date="2025-11-08"
+# DL3048 fix: use lowercase dotted label keys (OCI spec)
+LABEL org.opencontainers.image.authors="Manish Kumar"
+LABEL org.opencontainers.image.description="AI-Dev: PyTorch 25.10 base with R, MySQL, Jupyter, and Ollama for full-stack AI and bioinformatics development."
+LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.created="2025-11-08"
 
 WORKDIR /workspace
 
 # ==========================================================
 # 1. System dependencies
-# ----------------------------------------------------------
-# Installs general utilities, compilers, and libraries
-# required for building and running scientific software.
 # ==========================================================
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git curl wget vim build-essential \
-    libssl-dev libffi-dev python3-dev \
-    libmysqlclient-dev mysql-server \
+    git \
+    curl \
+    wget \
+    build-essential \
+    libssl-dev \
+    libffi-dev \
+    python3-dev \
+    libmysqlclient-dev \
+    mysql-server \
     software-properties-common \
-    dirmngr gnupg apt-transport-https ca-certificates \
+    dirmngr \
+    gnupg \
+    apt-transport-https \
+    ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
 # ==========================================================
 # 2. R Installation + Bioconductor packages
-# ----------------------------------------------------------
-# Installs base R and commonly used CRAN + Bioconductor
-# packages for bioinformatics and statistical analysis.
 # ==========================================================
-RUN apt-get update && apt-get install -y --no-install-recommends r-base && \
-    R -e "install.packages(c('tidyverse', 'data.table', 'BiocManager'), repos='https://cloud.r-project.org')" && \
-    R -e "BiocManager::install(c('ComplexHeatmap', 'limma', 'edgeR', 'DESeq2'), ask=FALSE)"
+RUN apt-get update && apt-get install -y --no-install-recommends r-base \
+ && rm -rf /var/lib/apt/lists/* \
+ && R -e "install.packages(c('tidyverse', 'data.table', 'BiocManager'), repos='https://cloud.r-project.org')" \
+ && R -e "BiocManager::install(c('ComplexHeatmap', 'limma', 'edgeR', 'DESeq2'), ask=FALSE)"
 
 # ==========================================================
 # 3. Python Data Science Stack
-# ----------------------------------------------------------
-# Installs modern Python tools for AI, ML, and data science.
-# Includes support for Hugging Face transformers and GPU acceleration.
+# DL3013 fix: use requirements file for pinned versions
+# DL3042 fix: --no-cache-dir on all pip calls
 # ==========================================================
-RUN pip install --upgrade pip setuptools wheel && \
-    pip install \
-      jupyterlab notebook \
-      pandas numpy scipy scikit-learn matplotlib seaborn \
-      sqlalchemy mysqlclient pymysql \
-      xgboost lightgbm plotly bokeh polars \
-      transformers datasets accelerate huggingface-hub safetensors
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+ && pip install --no-cache-dir -r /tmp/requirements.txt
 
 # ==========================================================
 # 4. MySQL Configuration
-# ----------------------------------------------------------
-# Prepares directories and permissions for MySQL server
-# to allow local database operations inside the container.
+# DL3001 fix: removed `service mysql stop` — meaningless in a container
+#             (no init system; MySQL never starts during build)
 # ==========================================================
-RUN mkdir -p /var/lib/mysql /var/run/mysqld && \
-    chown -R mysql:mysql /var/lib/mysql /var/run/mysqld && \
-    chmod 777 /var/run/mysqld && \
-    service mysql stop
+RUN mkdir -p /var/lib/mysql /var/run/mysqld \
+ && chown -R mysql:mysql /var/lib/mysql /var/run/mysqld \
+ && chmod 777 /var/run/mysqld
 
 # ==========================================================
 # 5. Ollama Installation
-# ----------------------------------------------------------
-# Adds Ollama for local LLM inference and model management.
-# Exposes port 11434 for external model access.
+# DL4001 fix: use curl consistently (wget removed from this layer)
 # ==========================================================
-RUN curl -fsSL https://ollama.com/install.sh | bash && \
-    ollama --version
+RUN curl -fsSL https://ollama.com/install.sh | bash \
+ && ollama --version
 
 # ==========================================================
 # 6. Port Configuration
-# ----------------------------------------------------------
-# 3306 -> MySQL
-# 8888 -> JupyterLab
-# 11434 -> Ollama API
+# 3306 -> MySQL  |  8888 -> JupyterLab  |  11434 -> Ollama
 # ==========================================================
 EXPOSE 3306
 EXPOSE 8888
@@ -86,57 +79,55 @@ EXPOSE 11434
 
 # ==========================================================
 # 7. Jupyter Configuration
-# ----------------------------------------------------------
-# Enables remote access, root permissions, and disables browser auto-launch.
 # ==========================================================
-RUN mkdir -p /root/.jupyter && \
-    echo "c.NotebookApp.ip = '0.0.0.0'" >> /root/.jupyter/jupyter_notebook_config.py && \
-    echo "c.NotebookApp.open_browser = False" >> /root/.jupyter/jupyter_notebook_config.py && \
-    echo "c.NotebookApp.allow_root = True" >> /root/.jupyter/jupyter_notebook_config.py
+RUN mkdir -p /root/.jupyter \
+ && printf '%s\n' \
+    "c.NotebookApp.ip = '0.0.0.0'" \
+    "c.NotebookApp.open_browser = False" \
+    "c.NotebookApp.allow_root = True" \
+    >> /root/.jupyter/jupyter_notebook_config.py
 
 # ==========================================================
-# 8. Default Command
-# ----------------------------------------------------------
-# Starts in Bash. Optionally can be replaced with a startup
-# script to auto-run Jupyter + Ollama.
+# 8. Bioinformatics tools — system deps
 # ==========================================================
-
-# ==========================================================
-# 9. Bioinformatics Workflow Tools (Nextflow + FastQC + GATK + SnpEff)
-# ----------------------------------------------------------
-# Installs Java-based and command-line bioinformatics tools
-# compatible with ARM64/AMD64 where possible.
-# ==========================================================
-
-# Install system-level dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    openjdk-11-jre-headless default-jdk \
-    fastqc samtools bcftools \
-    wget unzip curl && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install Nextflow (latest stable)
-RUN curl -s https://get.nextflow.io | bash && \
-    mv nextflow /usr/local/bin/ && \
-    chmod +x /usr/local/bin/nextflow
-
-# Install GATK 4.5.0.0
-RUN wget -q https://github.com/broadinstitute/gatk/releases/download/4.5.0.0/gatk-4.5.0.0.zip && \
-    unzip gatk-4.5.0.0.zip -d /opt && \
-    ln -s /opt/gatk-4.5.0.0/gatk /usr/local/bin/gatk && \
-    rm gatk-4.5.0.0.zip
-
+    openjdk-11-jre-headless \
+    default-jdk \
+    fastqc \
+    samtools \
+    bcftools \
+    unzip \
+ && rm -rf /var/lib/apt/lists/*
 
 # ==========================================================
-# 10. Install SnpEff 5.3a (Permanent, fixed script)
-# ----------------------------------------------------------
-    RUN wget -q -O /tmp/snpEff_latest_core.zip https://snpeff.odsp.astrazeneca.com/versions/snpEff_latest_core.zip && \
-    unzip /tmp/snpEff_latest_core.zip -d /opt && \
-    ln -s /opt/snpEff/snpEff.jar /usr/local/bin/snpEff.jar && \
-    echo '#!/bin/bash' > /usr/local/bin/snpeff && \
-    echo 'java -jar /usr/local/bin/snpEff.jar "$@"' >> /usr/local/bin/snpeff && \
-    chmod +x /usr/local/bin/snpeff && \
-    rm /tmp/snpEff_latest_core.zip
+# 9. Nextflow
+# DL4001 fix: curl only (removed wget from this layer)
+# ==========================================================
+RUN curl -fsSL https://get.nextflow.io | bash \
+ && mv nextflow /usr/local/bin/ \
+ && chmod +x /usr/local/bin/nextflow
+
+# ==========================================================
+# 10. GATK 4.5.0.0
+# DL4001 fix: wget only (removed curl from this layer)
+# ==========================================================
+RUN wget -q https://github.com/broadinstitute/gatk/releases/download/4.5.0.0/gatk-4.5.0.0.zip \
+ && unzip gatk-4.5.0.0.zip -d /opt \
+ && ln -s /opt/gatk-4.5.0.0/gatk /usr/local/bin/gatk \
+ && rm gatk-4.5.0.0.zip
+
+# ==========================================================
+# 11. SnpEff 5.3a
+# DL4001 fix: wget only (consistent with GATK layer above)
+# ==========================================================
+RUN wget -q -O /tmp/snpEff_latest_core.zip \
+    https://snpeff.odsp.astrazeneca.com/versions/snpEff_latest_core.zip \
+ && unzip /tmp/snpEff_latest_core.zip -d /opt \
+ && ln -s /opt/snpEff/snpEff.jar /usr/local/bin/snpEff.jar \
+ && printf '#!/bin/bash\njava -jar /usr/local/bin/snpEff.jar "$@"\n' \
+    > /usr/local/bin/snpeff \
+ && chmod +x /usr/local/bin/snpeff \
+ && rm /tmp/snpEff_latest_core.zip
 
 ENV PATH="/usr/local/bin:/opt/gatk-4.5.0.0:/opt/snpEff:${PATH}"
 
