@@ -16,9 +16,11 @@ Validates:
 from __future__ import annotations
 
 import re
+import runpy
 import shlex
 import unittest
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 # ── Repo root ─────────────────────────────────────────────────────────────────
 REPO_ROOT = Path(__file__).parent.parent
@@ -550,6 +552,102 @@ class TestDockerfileSecurity(unittest.TestCase):
                 first_line = block.split('\n')[0][:80]
                 errors.append(f"apt-get install without update: {first_line}")
         self.assertEqual(errors, [], "\n".join(errors))
+
+
+class TestBranchCoverage(unittest.TestCase):
+    """Exercises every error-path branch and helper edge case for 100 % coverage."""
+
+    @staticmethod
+    def _mod():
+        """Return the loaded module object so patch.object targets the right namespace."""
+        import sys
+        return sys.modules[__name__]
+
+    # ── requirements_packages(): empty/comment line → continue ───────────────
+
+    def test_requirements_packages_skips_empty_and_comment_lines(self) -> None:
+        with patch.object(self._mod(), "requirements_content",
+                          return_value="# a comment\n\npandas==2.0\n"):
+            pkgs = requirements_packages()
+        self.assertIn("pandas", pkgs)
+
+    # ── _exposed_ports(): ValueError on non-int token ────────────────────────
+
+    def test_exposed_ports_ignores_non_integer_token(self) -> None:
+        with patch.object(self._mod(), "dockerfile_lines",
+                          return_value=["EXPOSE 8888", "EXPOSE bad_port"]):
+            ports = TestDockerfilePorts()._exposed_ports()
+        self.assertIn(8888, ports)
+
+    # ── test_required_labels_present: errors.append branch ───────────────────
+
+    def test_labels_failure_branch(self) -> None:
+        with patch.object(self._mod(), "dockerfile_content",
+                          return_value="FROM scratch"):
+            with self.assertRaises(AssertionError):
+                TestDockerfileLabels().test_required_labels_present()
+
+    # ── test_required_apt_packages_installed: errors.append ──────────────────
+
+    def test_apt_packages_failure_branch(self) -> None:
+        stub = (
+            "FROM scratch\n"
+            "RUN apt-get update && apt-get install -y --no-install-recommends git\n"
+            " && rm -rf /var/lib/apt/lists/*"
+        )
+        with patch.object(self._mod(), "dockerfile_content", return_value=stub):
+            with self.assertRaises(AssertionError):
+                TestDockerfileAptPackages().test_required_apt_packages_installed()
+
+    # ── test_required_pip_packages_installed: errors.append ──────────────────
+
+    def test_pip_packages_failure_branch(self) -> None:
+        df_stub = "COPY requirements.txt /tmp/requirements.txt\nRUN pip install -r /tmp/requirements.txt"
+        req_stub = "some-other-package==1.0\n"
+        mod = self._mod()
+        with patch.object(mod, "dockerfile_content", return_value=df_stub), \
+             patch.object(mod, "requirements_content", return_value=req_stub):
+            with self.assertRaises(AssertionError):
+                TestDockerfilePipPackages().test_required_pip_packages_installed()
+
+    # ── test_required_r_packages_present: errors.append ──────────────────────
+
+    def test_r_packages_failure_branch(self) -> None:
+        with patch.object(self._mod(), "dockerfile_content",
+                          return_value="RUN apt-get install -y r-base\nBiocManager"):
+            with self.assertRaises(AssertionError):
+                TestDockerfileRPackages().test_required_r_packages_present()
+
+    # ── test_required_packages_in_requirements: errors.append ────────────────
+
+    def test_requirements_packages_failure_branch(self) -> None:
+        with patch.object(self._mod(), "requirements_packages",
+                          return_value={"some_other_pkg"}):
+            with self.assertRaises(AssertionError):
+                TestRequirementsTxt().test_required_packages_in_requirements()
+
+    # ── test_no_duplicate_packages: empty/comment line → continue ────────────
+
+    def test_no_duplicate_packages_skips_empty_lines(self) -> None:
+        mock_req = MagicMock()
+        mock_req.read_text.return_value = "# comment\n\npandas==2.0\nnumpy==1.0\n"
+        with patch.object(self._mod(), "REQUIREMENTS", mock_req):
+            TestRequirementsTxt().test_no_duplicate_packages()
+
+    # ── test_apt_update_before_install: errors.append branch ────────────────
+
+    def test_apt_update_without_install_failure_branch(self) -> None:
+        bad_dockerfile = "RUN apt-get install -y curl\nRUN echo done"
+        with patch.object(self._mod(), "dockerfile_content", return_value=bad_dockerfile):
+            with self.assertRaises(AssertionError):
+                TestDockerfileSecurity().test_apt_update_before_install()
+
+    # ── if __name__ == "__main__": guard ─────────────────────────────────────
+
+    def test_main_guard_invokes_unittest_main(self) -> None:
+        with patch("unittest.main") as mock_main:
+            runpy.run_path(__file__, run_name="__main__")
+        mock_main.assert_called_once()
 
 
 if __name__ == "__main__":
