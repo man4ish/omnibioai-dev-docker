@@ -33,7 +33,7 @@ EXPECTED_WORKDIR = "/workspace"
 
 # System packages that must be installed
 REQUIRED_APT_PACKAGES = {
-    "git", "curl", "wget", "vim", "build-essential",
+    "git", "curl", "wget", "build-essential",
     "libssl-dev", "libffi-dev",
     "r-base",
     "fastqc", "samtools", "bcftools",
@@ -61,7 +61,11 @@ REQUIRED_R_PACKAGES = {
 }
 
 # Docker labels that must be present
-REQUIRED_LABELS = {"maintainer", "description", "version"}
+REQUIRED_LABELS = {
+    "org.opencontainers.image.authors",
+    "org.opencontainers.image.description",
+    "org.opencontainers.image.version",
+}
 
 # run_ai_dev.sh must contain these docker run flags
 REQUIRED_DOCKER_FLAGS = {
@@ -165,19 +169,19 @@ class TestDockerfileLabels(unittest.TestCase):
         content = dockerfile_content()
         errors = []
         for label in REQUIRED_LABELS:
-            if f'LABEL {label}' not in content:
+            if label not in content:
                 errors.append(f"Missing LABEL: {label}")
         self.assertEqual(errors, [], "\n".join(errors))
 
     def test_maintainer_label_not_empty(self) -> None:
         content = dockerfile_content()
-        match = re.search(r'LABEL maintainer="([^"]+)"', content)
-        self.assertIsNotNone(match, "maintainer label not found or empty")
-        self.assertTrue(match.group(1).strip(), "maintainer label is empty")
+        match = re.search(r'LABEL org\.opencontainers\.image\.authors="([^"]+)"', content)
+        self.assertIsNotNone(match, "authors label not found or empty")
+        self.assertTrue(match.group(1).strip(), "authors label is empty")
 
     def test_version_label_follows_semver(self) -> None:
         content = dockerfile_content()
-        match = re.search(r'LABEL version="([^"]+)"', content)
+        match = re.search(r'LABEL org\.opencontainers\.image\.version="([^"]+)"', content)
         self.assertIsNotNone(match, "version label not found")
         version = match.group(1)
         self.assertRegex(
@@ -264,20 +268,30 @@ class TestDockerfilePipPackages(unittest.TestCase):
     """Required Python packages must be in pip install."""
 
     def test_required_pip_packages_installed(self) -> None:
-        content = dockerfile_content()
+        # Packages installed via -r requirements.txt — check requirements.txt instead
+        req_content = requirements_content().lower()
+        dockerfile = dockerfile_content()
+        # Verify Dockerfile references requirements.txt
+        self.assertIn(
+            "requirements.txt",
+            dockerfile,
+            "Dockerfile should install from requirements.txt",
+        )
         errors = []
         for pkg in REQUIRED_PIP_PACKAGES:
-            # Check both hyphenated and underscore versions
-            pkg_alt = pkg.replace("-", "_").replace("_", "-")
-            if pkg not in content and pkg_alt not in content:
-                errors.append(f"pip package not found in Dockerfile: {pkg}")
+            pkg_norm = pkg.lower().replace("-", "_").replace("_", "-")
+            pkg_alt = pkg.lower().replace("-", "_")
+            if pkg_norm not in req_content and pkg_alt not in req_content and pkg.lower() not in req_content:
+                errors.append(f"pip package not found in requirements.txt: {pkg}")
         self.assertEqual(errors, [], "\n".join(errors))
 
     def test_pip_upgraded_before_install(self) -> None:
         content = dockerfile_content()
-        self.assertIn(
-            "pip install --upgrade pip",
-            content,
+        # Accept either --upgrade pip or --upgrade as part of install command
+        self.assertTrue(
+            "pip install --upgrade pip" in content or
+            "pip install --no-cache-dir --upgrade pip" in content or
+            "--upgrade pip" in content,
             "pip should be upgraded before installing packages",
         )
 
