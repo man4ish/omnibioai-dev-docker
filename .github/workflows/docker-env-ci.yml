@@ -57,10 +57,12 @@ jobs:
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: Dockerfile
-          ignore: DL3008,DL3009,DL3015
+          ignore: DL3008,DL3009,DL3013,DL3015,DL4001
           # DL3008 — pin apt versions (too strict for dev env)
           # DL3009 — delete apt lists (already doing this)
+          # DL3013 — pip pinning handled via requirements.txt
           # DL3015 — avoid additional packages (needed for dev)
+          # DL4001 — wget/curl both used for different tools
           failure-threshold: error
 
   # ── Job 3: Validate requirements.txt ────────────────────────────────────────
