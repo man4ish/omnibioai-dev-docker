@@ -1,8 +1,158 @@
-.git
-.github
+# ================================
+# Git
+# ================================
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# ================================
+# Python
+# ================================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# ================================
+# Jupyter / Notebooks
+# ================================
+**/*.ipynb_checkpoints
+*.ipynb_save
+
+# ================================
+# Docker
+# ================================
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# ================================
+# Logs
+# ================================
 *.log
+logs/
 cromwell-executions/
 cromwell-workflow-logs/
+
+# ================================
+# Data / Runtime files
+# ================================
 data/
 temp/
-**/*.ipynb_checkpoints
+tmp/
+out/
+results/
+work/
+output/
+
+# ================================
+# ML model weights
+# ================================
+*.bin
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.pb
+*.tflite
+
+# ================================
+# Bioinformatics data files
+# ================================
+**/*.bam
+**/*.bam.bai
+**/*.cram
+**/*.cram.crai
+**/*.fastq
+**/*.fastq.gz
+**/*.fq
+**/*.fq.gz
+**/*.vcf
+**/*.vcf.gz
+**/*.bcf
+**/*.bed
+**/*.gtf
+**/*.gff
+**/*.gff3
+**/*.sam
+**/*.h5ad
+**/*.loom
+
+# ================================
+# HuggingFace / Ollama / AI cache
+# ================================
+.cache/
+.ollama/
+huggingface/
+hf_*
+**/.cache/huggingface/
+**/.ollama/
+
+# ================================
+# DGX / NVIDIA specific
+# ================================
+TensorRT*/
+*.cubin
+*.ptx
+*.fatbin
+
+# ================================
+# R
+# ================================
+.Rhistory
+.RData
+.Rproj.user/
+renv/
+packrat/
+
+# ================================
+# Secrets / credentials
+# ================================
+.env
+.env.*
+!.env.example
+*.token
+*_token.txt
+*.key
+*.pem
+credentials.json
+service_account.json
+.aws/
+.gcloud/
+.kube/
+
+# ================================
+# Tests / coverage
+# ================================
+tests/
+htmlcov/
+
+# ================================
+# IDE / OS
+# ================================
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ================================
+# Obsolete
+# ================================
+obsolete/

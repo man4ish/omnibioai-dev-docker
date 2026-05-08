@@ -5,19 +5,37 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
 
 # ================================
 # Jupyter / Notebooks
 # ================================
 .ipynb_checkpoints/
 *.ipynb_save
+*.nbconvert/
+profile_default/
+ipython_config.py
 
 # ================================
 # Docker
 # ================================
 *.log
 .env
+.env.*
+!.env.example
 *.pid
+docker-compose.override.yml
 
 # ================================
 # Hugging Face / Ollama / AI Models
@@ -29,15 +47,88 @@ token
 hf_*
 /root/.cache/huggingface/
 /root/.ollama/
+*.bin
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.tflite
+*.pb
+
+# ================================
+# Bioinformatics data files
+# ================================
+*.bam
+*.bam.bai
+*.cram
+*.cram.crai
+*.fastq
+*.fastq.gz
+*.fq
+*.fq.gz
+*.vcf
+*.vcf.gz
+*.bcf
+*.bed
+*.gtf
+*.gff
+*.gff3
+*.sam
+*.h5ad
+*.loom
+
+# ================================
+# DGX / NVIDIA specific
+# ================================
+/workspace/TensorRT*/
+*.cubin
+*.ptx
+*.fatbin
+
+# ================================
+# R
+# ================================
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+renv/
+packrat/
+
+# ================================
+# Secrets / credentials
+# ================================
+*.token
+*_token.txt
+*.key
+*.pem
+*.p12
+credentials.json
+service_account.json
+.aws/
+.gcloud/
+.kube/
 
 # ================================
 # OS and Misc
 # ================================
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
 
 # ================================
 # Temporary / Obsolete
 # ================================
 obsolete/
 tmp/
+temp/
+*.tmp
+*.bak
+*.orig
+out/
+results/
