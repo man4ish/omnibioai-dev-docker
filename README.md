@@ -1,256 +1,238 @@
-# OmniBioAI Developer Environment
+# OmniBioAI Dev Environment
 
-**GPU-Enabled AI & Bioinformatics Development Docker Image**
+> Full AI/Bioinformatics development environment for GPU/DGX machines.
+> Built on NVIDIA PyTorch 25.10 with CUDA support.
 
-This repository provides a **fully self-contained, GPU-enabled development environment** for AI, bioinformatics, and data science workflows used during **OmniBioAI development and research**.
-
-It is designed to replicate a **powerful research workstation in a single Docker image**, enabling rapid experimentation with machine learning, LLMs, single-cell analysis, and exploratory bioinformatics — without polluting the host system.
+[![Docker](https://img.shields.io/badge/ghcr.io-omnibioai--dev--env-blue?logo=docker)](https://ghcr.io/man4ish/omnibioai-dev-env)
+[![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
+[![GPU Required](https://img.shields.io/badge/GPU-required-orange?logo=nvidia)](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
 
 ---
 
 ## What This Repository Is
 
-This repository is an **optional developer convenience environment**.
+This is an **optional developer convenience environment** — think of it as:
+
+> **"A researcher's laptop in a container."**
 
 It is intended for:
-
-* OmniBioAI contributors
-* Researchers doing exploratory analysis
-* AI / LLM prototyping
-* Single-cell and multi-omics experimentation
-* Notebook-driven development (Python + R)
-* GPU-accelerated model training and inference
-
-Think of it as:
-
-> **“A researcher’s laptop in a container.”**
-
----
+- OmniBioAI contributors and researchers
+- Exploratory AI/LLM prototyping
+- Single-cell and multi-omics experimentation
+- Notebook-driven development (Python + R)
+- GPU-accelerated model training and inference
 
 ## What This Repository Is NOT
 
-This repository is **not** part of the OmniBioAI production stack.
+This is **not** part of the OmniBioAI production stack. It is not:
+- A Tool Execution Service (TES) runtime
+- A production or cloud deployment image
+- Used by OmniBioAI pipelines at runtime
 
-Specifically, it is **not**:
-
-* A Tool Execution Service (TES) runtime
-* A production container image
-* A workflow execution environment
-* A cloud deployment image
-* Used by OmniBioAI pipelines or agents at runtime
-
-Execution containers used by TES are **minimal, stateless, and contract-driven**
-This image is **stateful, interactive, and intentionally heavy**
-
----
-
-## Environment Overview
-
-This image is built on **NVIDIA PyTorch 25.10** with full CUDA support and includes a carefully curated stack for AI and computational biology.
-
-### Core Capabilities
-
-* GPU-accelerated Python development
-* R-based statistical and single-cell analysis
-* Interactive JupyterLab environment
-* Local database support for prototyping
-* LLM tooling for local and hybrid inference
+| Component | Role |
+|---|---|
+| OmniBioAI Workbench | Production platform |
+| Tool Execution Service (TES) | Stateless execution |
+| Tool Runtime Images | Minimal, contract-driven |
+| **This Repository** | Interactive development only |
 
 ---
 
-## Included Stack
+## What's Inside
 
-### Base
-
-* NVIDIA PyTorch 25.10 (CUDA-enabled)
-* Ubuntu base image
-* CUDA + cuDNN preconfigured
-
-### Languages
-
-* Python
-* R
-
-### Machine Learning & Data Science
-
-* PyTorch
-* Scikit-learn
-* XGBoost
-* LightGBM
-* Polars
-* NumPy / Pandas
-
-### Visualization
-
-* Matplotlib
-* Seaborn
-* Plotly
-* Bokeh
-
-### LLM / AI Tooling
-
-* Hugging Face Transformers
-* Hugging Face Hub
-* Accelerate
-* Safetensors
-* Ollama (client-side integration)
-
-### Databases
-
-* MySQL (local development and prototyping)
-
-### Interactive Development
-
-* JupyterLab (preconfigured)
+| Category | Tools |
+|---|---|
+| **Deep Learning** | PyTorch 2.9 (GPU), TorchVision, TensorRT, Flash Attention, Transformer Engine |
+| **ML/Data Science** | Scikit-learn, XGBoost, LightGBM, Polars, Pandas, NumPy, SciPy |
+| **Bioinformatics** | GATK 4.5, Samtools, BCFTools, FastQC, SnpEff, Nextflow, BEDTools |
+| **Genomics/R** | R 4.x, Bioconductor, DESeq2, limma, edgeR, ComplexHeatmap, scran, scater |
+| **LLM/AI** | Transformers, HuggingFace Hub, Accelerate, Safetensors, Ollama |
+| **Visualization** | Matplotlib, Seaborn, Plotly, Bokeh, TensorBoard |
+| **Notebook** | JupyterLab 4.x (pre-configured, GPU-enabled) |
 
 ---
 
-## Repository Structure
+## Requirements
 
-```
-.
-├── Dockerfile          # Defines the full AI development environment
-├── requirements.txt    # Python dependencies
-├── run_ai_dev.sh       # Convenience script to run the container
-├── README.md
-└── .gitignore
-```
+- NVIDIA GPU (A100, H100, or DGX system recommended)
+- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) installed on host
+- Docker with GPU support
+- 50GB+ free disk space
 
 ---
 
-## Build the Docker Image
+## Quick Start
 
+### Option A — Pull from GHCR (recommended)
 ```bash
-docker build -t omnibioai-dev-env .
-```
-
-You may choose a different tag if desired.
-
----
-
-## Run the Development Container
-
-Use the provided helper script:
-
-```bash
+docker pull ghcr.io/man4ish/omnibioai-dev-env:latest
 bash run_ai_dev.sh
 ```
 
-### What the Run Script Does
-
-The script mounts:
-
-* Hugging Face cache and authentication
-* Ollama model directory
-* Current working directory as the workspace
-
-This enables:
-
-* Persistent model downloads
-* Token reuse
-* Seamless local development
+### Option B — Build locally
+```bash
+git clone https://github.com/man4ish/omnibioai-dev-docker
+cd omnibioai-dev-docker
+docker build -t ghcr.io/man4ish/omnibioai-dev-env:latest .
+bash run_ai_dev.sh
+```
 
 ---
 
-## Ollama Integration
-
-The container is configured to **connect to an existing Ollama instance** by default.
-
-The Ollama port (`11434`) is commented out in the run script.
-
-If you want the container itself to host Ollama:
-
-1. Uncomment the port mapping
-2. Start Ollama inside the container
-
----
-
-## Hugging Face Authentication
-
-Authenticate once using:
+## Running the Container
 
 ```bash
-huggingface-cli login
+bash run_ai_dev.sh [OPTIONS]
+
+Options:
+  --jupyter    Start JupyterLab automatically
+  --ollama     Start Ollama server automatically
+  --build      Force rebuild image from Dockerfile
+  --help       Show help
 ```
 
-Or set the token via environment variable:
+This launches an interactive container with:
+- Full GPU access (`--gpus all`)
+- Shared memory for PyTorch DataLoader (`--ipc=host`)
+- HuggingFace cache mounted (`~/.cache/huggingface`)
+- Ollama models mounted (`~/.ollama`)
+- Current directory mounted as `/workspace`
+- JupyterLab on port `8888`
+- Ollama server on port `11434`
 
+### Start JupyterLab:
 ```bash
-export HUGGINGFACE_TOKEN=hf_xxxxxxxxxxxxxxxxxxxxx
+# Via flag (recommended)
+bash run_ai_dev.sh --jupyter
+
+# Or manually inside container
+jupyter lab --ip=0.0.0.0 --port=8888 --allow-root --no-browser
 ```
 
-The token will be mounted into the container securely.
+Then open: `http://localhost:8888`
+
+### Start Ollama:
+```bash
+# Via flag
+bash run_ai_dev.sh --ollama
+
+# Or manually inside container
+ollama serve &
+ollama pull llama3
+ollama run llama3 "Summarize the role of TP53 in cancer"
+```
 
 ---
 
 ## GPU Validation
 
-After starting the container, verify CUDA support:
+Inside the container, verify CUDA and all tools:
 
 ```bash
-python -c "import torch; print(torch.cuda.is_available())"
+# PyTorch GPU
+python -c "import torch; print('CUDA:', torch.cuda.is_available()); print('GPU:', torch.cuda.get_device_name(0))"
+
+# Bioinformatics tools
+nextflow -version
+gatk --version
+samtools --version | head -1
+fastqc --version
+snpeff -version
+
+# R + Bioconductor
+R -e "library(DESeq2); packageVersion('DESeq2')"
 ```
 
-Expected output:
+If CUDA returns `False`, verify:
+- NVIDIA drivers are installed
+- Docker is configured with GPU support
+- `nvidia-container-toolkit` is available
 
-```text
-True
+---
+
+## HuggingFace Authentication
+
+```bash
+# Inside container
+huggingface-cli login
+
+# Or via environment variable
+export HUGGINGFACE_TOKEN=hf_xxxxxxxxxxxxxxxxxxxxx
 ```
 
-If this prints `False`, verify:
+---
 
-* NVIDIA drivers are installed
-* Docker is configured with GPU support
-* `nvidia-container-toolkit` is available
+## Example — GPU-accelerated single-cell analysis
+
+```python
+import torch
+import scanpy as sc
+
+print(f"Using GPU: {torch.cuda.get_device_name(0)}")
+
+adata = sc.read_h5ad("/workspace/data/sample.h5ad")
+sc.pp.normalize_total(adata)
+sc.pp.log1p(adata)
+sc.pp.highly_variable_genes(adata)
+sc.tl.pca(adata)
+sc.pl.pca_variance_ratio(adata)
+```
 
 ---
 
 ## Typical Use Cases
 
-This environment is ideal for:
-
-* Prototyping new OmniBioAI plugins
-* Exploratory single-cell analysis (Scanpy / Seurat workflows)
-* LLM prompt and RAG experimentation
-* Model benchmarking
-* Notebook-based research
-* Rapid testing before productionization
+- Prototyping new OmniBioAI plugins
+- Exploratory single-cell analysis (Scanpy/Seurat workflows)
+- LLM prompt and RAG experimentation
+- Model benchmarking and training
+- Notebook-based research
+- Rapid testing before productionization
 
 ---
 
-## Relationship to OmniBioAI Platform
+## Repository Structure
 
-| Component                    | Role                         |
-| ---------------------------- | ---------------------------- |
-| OmniBioAI Workbench          | Production platform          |
-| Tool Execution Service (TES) | Stateless execution          |
-| Tool Runtime Images          | Minimal, contract-driven     |
-| **This Repository**          | Interactive development only |
-
-This separation is **intentional** and critical for reproducibility.
-
----
-
-## License & Usage
-
-This repository is provided as a **development convenience**.
-
-You are free to:
-
-* Modify it
-* Extend it
-* Use it as a base for your own research images
-
-Just remember:
-**Do not use this image in production pipelines.**
+| File | Description |
+|---|---|
+| `Dockerfile` | Main image definition |
+| `requirements.txt` | Portable Python dependencies |
+| `requirements.dgx.txt` | DGX-specific packages (pre-installed in base, docs only) |
+| `run_ai_dev.sh` | Container launch script |
+| `tests/` | Validation tests |
+| `pyproject.toml` | Project metadata |
+| `.gitignore` | Prevents secrets/caches from being committed |
+| `.dockerignore` | Prevents data/models from being baked into image |
 
 ---
 
-## Final Note
+## Part of the OmniBioAI Ecosystem
 
-As OmniBioAI grows, reproducibility and architectural clarity matter more than convenience.
+This dev environment is designed to work alongside the
+[OmniBioAI platform](https://github.com/man4ish/omnibioai) —
+a unified AI-powered bioinformatics workbench supporting:
 
-This repository exists to **accelerate development**, not to blur system boundaries.
+- 97 bioinformatics plugins
+- RNA-seq, single-cell, spatial omics, variant calling
+- TES workflow execution (Slurm, K8s, AWS Batch, Azure)
+- RAG-powered literature search (PubMed + FAISS)
+- ML model registry
+- Multi-cloud support (AWS, Azure, GCP)
 
-That distinction is deliberate.
+---
 
+## License
+
+Apache License 2.0 — see [LICENSE](LICENSE)
+
+---
+
+## Citation
+
+If you use this environment in your research, please cite:
+
+```
+OmniBioAI Dev Environment (2025)
+Manish Kumar
+https://github.com/man4ish/omnibioai-dev-docker
+```

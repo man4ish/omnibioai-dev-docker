@@ -1,4 +1,12 @@
 # ================================
+# Git
+# ================================
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# ================================
 # Python
 # ================================
 __pycache__/
@@ -21,67 +29,83 @@ htmlcov/
 # ================================
 # Jupyter / Notebooks
 # ================================
-.ipynb_checkpoints/
+**/*.ipynb_checkpoints
 *.ipynb_save
-*.nbconvert/
-profile_default/
-ipython_config.py
 
 # ================================
 # Docker
 # ================================
-*.log
-.env
-.env.*
-!.env.example
-*.pid
-docker-compose.override.yml
+Dockerfile*
+docker-compose*
+.dockerignore
 
 # ================================
-# Hugging Face / Ollama / AI Models
+# Logs
 # ================================
-.cache/
-.ollama/
-huggingface/
-token
-hf_*
-/root/.cache/huggingface/
-/root/.ollama/
+*.log
+logs/
+cromwell-executions/
+cromwell-workflow-logs/
+
+# ================================
+# Data / Runtime files
+# ================================
+data/
+temp/
+tmp/
+out/
+results/
+work/
+output/
+
+# ================================
+# ML model weights
+# ================================
 *.bin
 *.safetensors
 *.ckpt
 *.pt
 *.pth
 *.onnx
-*.tflite
 *.pb
+*.tflite
 
 # ================================
 # Bioinformatics data files
 # ================================
-*.bam
-*.bam.bai
-*.cram
-*.cram.crai
-*.fastq
-*.fastq.gz
-*.fq
-*.fq.gz
-*.vcf
-*.vcf.gz
-*.bcf
-*.bed
-*.gtf
-*.gff
-*.gff3
-*.sam
-*.h5ad
-*.loom
+**/*.bam
+**/*.bam.bai
+**/*.cram
+**/*.cram.crai
+**/*.fastq
+**/*.fastq.gz
+**/*.fq
+**/*.fq.gz
+**/*.vcf
+**/*.vcf.gz
+**/*.bcf
+**/*.bed
+**/*.gtf
+**/*.gff
+**/*.gff3
+**/*.sam
+**/*.h5ad
+**/*.loom
+
+# ================================
+# HuggingFace / Ollama / AI cache
+# ================================
+.cache/
+.ollama/
+huggingface/
+hf_*
+**/.cache/huggingface/
+**/.ollama/
 
 # ================================
 # DGX / NVIDIA specific
 # ================================
-/workspace/TensorRT*/
+TensorRT*/
 *.cubin
 *.ptx
 *.fatbin
@@ -92,18 +116,19 @@ hf_*
 .Rhistory
 .RData
 .Rproj.user/
-*.Rproj
 renv/
 packrat/
 
 # ================================
 # Secrets / credentials
 # ================================
+.env
+.env.*
+!.env.example
 *.token
 *_token.txt
 *.key
 *.pem
-*.p12
 credentials.json
 service_account.json
 .aws/
@@ -111,24 +136,23 @@ service_account.json
 .kube/
 
 # ================================
-# OS and Misc
+# Tests / coverage
 # ================================
+tests/
+htmlcov/
+
+# ================================
+# IDE / OS
+# ================================
+.idea/
+.vscode/
 .DS_Store
 Thumbs.db
 *.swp
 *.swo
 *~
-.idea/
-.vscode/
 
 # ================================
-# Temporary / Obsolete
+# Obsolete
 # ================================
 obsolete/
-tmp/
-temp/
-*.tmp
-*.bak
-*.orig
-out/
-results/

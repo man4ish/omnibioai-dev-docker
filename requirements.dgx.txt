@@ -1,0 +1,29 @@
+# ==========================================================
+# requirements.dgx.txt
+# DGX-ONLY packages — pre-installed in nvcr.io base image
+# DO NOT pip install these — they are already present
+# These are listed for documentation/auditing purposes only
+# ==========================================================
+
+# Installed from /opt/pytorch/ on DGX:
+# apex==0.1
+# flash-attn==2.7.4
+# torch==2.9.0a0+nv25.10
+# torchvision==0.24.0a0
+# torch-tensorrt==2.9.0a0
+# torchao (latest)
+# nvfuser (latest)
+# lightning-thunder (latest)
+# transformer-engine (latest)
+# pytorch-triton==3.4.0
+
+# Installed from /workspace/TensorRT on DGX:
+# tensorrt==10.13.3.9
+
+# Installed from /opt/pytorch/lightning-thunder/tmp/:
+# nvidia-cudnn-frontend (latest)
+
+# Available via nvcr.io base:
+# nvidia-dali
+# polygraphy
+# onnx
