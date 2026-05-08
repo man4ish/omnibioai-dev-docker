@@ -42,6 +42,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gnupg \
     apt-transport-https \
     ca-certificates \
+    zstd \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
@@ -128,7 +129,7 @@ RUN wget -q https://github.com/broadinstitute/gatk/releases/download/4.5.0.0/gat
 # 9. SnpEff
 # ==========================================================
 RUN wget -q -O /tmp/snpEff_latest_core.zip \
-    https://snpeff.blob.core.windows.net/versions/snpEff_latest_core.zip \
+    https://sourceforge.net/projects/snpeff/files/snpEff_latest_core.zip/download \
     && unzip /tmp/snpEff_latest_core.zip -d /opt \
     && ln -s /opt/snpEff/snpEff.jar /usr/local/bin/snpEff.jar \
     && printf '#!/bin/bash\njava -jar /usr/local/bin/snpEff.jar "$@"\n' \

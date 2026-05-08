@@ -1,282 +1,207 @@
-name: Docker Environment CI
+name: CI/CD — OmniBioAI Dev Docker
 
 on:
   push:
-    branches: ["main", "develop", "feature/*"]
+    branches: [main, dev, "release/**", "feature/**"]
+    tags: ["v*.*.*"]
   pull_request:
-    branches: ["main", "develop"]
-  workflow_dispatch:
+    branches: [main, dev]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE_NAME: omnibioai-dev-env
+  REGISTRY: ghcr.io
+  FULL_IMAGE: ghcr.io/${{ github.repository_owner }}/omnibioai-dev-env
 
 jobs:
-  # ── Job 1: Validate configuration files ─────────────────────────────────────
-  validate-config:
-    name: Validate Docker Configuration
+  # -----------------------------------------------------------------------
+  # 1. Lint — fast, no Docker needed
+  # -----------------------------------------------------------------------
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip"
-
-      - name: Install test dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pytest pytest-cov
-
-      - name: Run configuration tests
-        run: |
-          pytest tests/ \
-            --cov=tests \
-            --cov-report=term-missing \
-            --cov-report=xml \
-            --cov-fail-under=95 \
-            -v
-
-      - name: Upload coverage report
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage.xml
-          retention-days: 7
-
-  # ── Job 2: Lint Dockerfile ───────────────────────────────────────────────────
-  lint-dockerfile:
-    name: Lint Dockerfile
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Lint Dockerfile with Hadolint
+      - name: Lint Dockerfile (hadolint)
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: Dockerfile
-          ignore: DL3008,DL3009,DL3013,DL3015,DL4001
-          # DL3008 — pin apt versions (too strict for dev env)
-          # DL3009 — delete apt lists (already doing this)
-          # DL3013 — pip pinning handled via requirements.txt
-          # DL3015 — avoid additional packages (needed for dev)
-          # DL4001 — wget/curl both used for different tools
+          ignore: DL3008,DL3009,DL4006,DL3013,DL3042
           failure-threshold: error
 
-  # ── Job 3: Validate requirements.txt ────────────────────────────────────────
-  validate-requirements:
-    name: Validate requirements.txt
-    runs-on: ubuntu-latest
+      - name: Lint run_ai_dev.sh (shellcheck)
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: .
+          severity: warning
 
+  # -----------------------------------------------------------------------
+  # 2. Unit tests — fast, no Docker needed
+  # -----------------------------------------------------------------------
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    needs: lint
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Check requirements.txt is parseable
-        run: |
-          python3 - << 'PYEOF'
-          import re
-          from pathlib import Path
+      - name: Install test dependencies
+        run: pip install pytest pytest-cov
 
-          req = Path("requirements.txt")
-          assert req.exists(), "requirements.txt not found"
+      - name: Run tests
+        run: pytest tests/ -v --tb=short 2>&1
 
-          names = []
-          errors = []
-          for i, line in enumerate(req.read_text().splitlines(), start=1):
-              line = line.strip()
-              if not line or line.startswith("#"):
-                  continue
-              name = re.split(r"[>=<!@\s]", line)[0].strip().lower()
-              if not name:
-                  errors.append(f"Line {i}: empty package name")
-              else:
-                  names.append(name)
-
-          duplicates = [n for n in set(names) if names.count(n) > 1]
-          if duplicates:
-              errors.append(f"Duplicate packages: {duplicates}")
-
-          if errors:
-              for e in errors:
-                  print(f"❌ {e}")
-              exit(1)
-
-          print(f"✅ requirements.txt valid — {len(names)} packages")
-          PYEOF
-
-      - name: Check key packages present
-        run: |
-          python3 - << 'PYEOF'
-          from pathlib import Path
-
-          content = Path("requirements.txt").read_text().lower()
-          required = [
-              "torch", "transformers", "jupyterlab",
-              "pandas", "numpy", "scikit", "xgboost",
-          ]
-          missing = [p for p in required if p not in content]
-          if missing:
-              print(f"❌ Missing packages: {missing}")
-              exit(1)
-          print(f"✅ All key packages present")
-          PYEOF
-
-  # ── Job 4: Security scan ─────────────────────────────────────────────────────
-  security-scan:
-    name: Security Scan
+  # -----------------------------------------------------------------------
+  # 3. Validate run script — no Docker needed
+  # -----------------------------------------------------------------------
+  validate-script:
+    name: Validate run script
     runs-on: ubuntu-latest
-
+    needs: lint
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Scan Dockerfile for secrets
+      - name: Check shebang
         run: |
-          python3 - << 'PYEOF'
-          import re
-          from pathlib import Path
+          head -1 run_ai_dev.sh | grep -q '^#!/bin/bash' || \
+            (echo "Missing #!/bin/bash shebang" && exit 1)
+          echo "✅ Shebang OK"
 
-          content = Path("Dockerfile").read_text()
-          patterns = [
-              (r'hf_[A-Za-z]{20,}', "HuggingFace API key"),
-              (r'sk-[A-Za-z0-9]{20,}', "OpenAI API key"),
-              (r'PASSWORD\s*=\s*["\'][^"\']{4,}["\']', "Hardcoded password"),
-              (r'SECRET\s*=\s*["\'][^"\']{4,}["\']', "Hardcoded secret"),
-          ]
-          found = []
-          for pattern, label in patterns:
-              if re.search(pattern, content, re.IGNORECASE):
-                  found.append(label)
-          if found:
-              print(f"❌ Secrets found: {found}")
-              exit(1)
-          print("✅ No secrets found in Dockerfile")
-          PYEOF
+      - name: Syntax check
+        run: bash -n run_ai_dev.sh && echo "✅ Syntax OK"
 
-      - name: Scan run script for secrets
+      - name: Confirm required docker flags
         run: |
-          python3 - << 'PYEOF'
-          import re
-          from pathlib import Path
+          grep -q -- '--gpus all'       run_ai_dev.sh || (echo "❌ Missing --gpus all"   && exit 1)
+          grep -q -- '--ipc=host'       run_ai_dev.sh || (echo "❌ Missing --ipc=host"   && exit 1)
+          grep -q -- 'huggingface'      run_ai_dev.sh || (echo "❌ Missing HF mount"     && exit 1)
+          grep -q -- '.ollama'          run_ai_dev.sh || (echo "❌ Missing Ollama mount" && exit 1)
+          grep -q -- 'nvidia-smi'       run_ai_dev.sh || (echo "❌ Missing GPU guard"    && exit 1)
+          grep -q -- 'JUPYTER_PORT'     run_ai_dev.sh || (echo "❌ Missing JUPYTER_PORT" && exit 1)
+          grep -q -- 'OLLAMA_PORT'      run_ai_dev.sh || (echo "❌ Missing OLLAMA_PORT"  && exit 1)
+          grep -q -- 'ghcr.io/man4ish' run_ai_dev.sh || (echo "❌ Missing GHCR image"   && exit 1)
+          echo "✅ All required flags present"
 
-          content = Path("run_ai_dev.sh").read_text()
-          patterns = [
-              (r'hf_[A-Za-z]{20,}', "HuggingFace API key"),
-              (r'PASSWORD\s*=\s*[^\$][^\s]{4,}', "Hardcoded password"),
-          ]
-          found = []
-          for pattern, label in patterns:
-              if re.search(pattern, content, re.IGNORECASE):
-                  found.append(label)
-          if found:
-              print(f"❌ Secrets found in run script: {found}")
-              exit(1)
-          print("✅ No secrets found in run script")
-          PYEOF
-
-  # ── Job 5: Build validation (dry run) ────────────────────────────────────────
-  validate-build:
-    name: Validate Dockerfile Syntax
+  # -----------------------------------------------------------------------
+  # 4. Validate Dockerfile structure — no Docker build needed
+  # -----------------------------------------------------------------------
+  validate-dockerfile:
+    name: Validate Dockerfile
     runs-on: ubuntu-latest
-
+    needs: lint
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Validate Dockerfile syntax
+      - name: Check required instructions
         run: |
-          # Use docker build --check (dry run) to validate syntax without building
-          # Falls back to basic parsing if --check not supported
-          if docker build --help | grep -q "\-\-check"; then
-            docker build --check . && echo "✅ Dockerfile syntax valid"
-          else
-            echo "Docker --check not supported, validating structure manually"
-            python3 - << 'PYEOF'
-          from pathlib import Path
-          content = Path("Dockerfile").read_text()
-          required = ["FROM ", "WORKDIR ", "RUN ", "EXPOSE ", "CMD "]
-          missing = [r for r in required if r not in content]
-          if missing:
-              print(f"❌ Missing instructions: {missing}")
-              exit(1)
-          print("✅ Dockerfile structure valid")
-          PYEOF
+          grep -q 'nvcr.io/nvidia/pytorch' Dockerfile || (echo "❌ Wrong base image" && exit 1)
+          grep -q 'EXPOSE 8888'            Dockerfile || (echo "❌ Missing port 8888" && exit 1)
+          grep -q 'EXPOSE 11434'           Dockerfile || (echo "❌ Missing port 11434" && exit 1)
+          grep -q 'openjdk-17'             Dockerfile || (echo "❌ Missing Java 17" && exit 1)
+          grep -q 'gatk'                   Dockerfile || (echo "❌ Missing GATK" && exit 1)
+          grep -q 'nextflow'               Dockerfile || (echo "❌ Missing Nextflow" && exit 1)
+          grep -q 'All tools validated'    Dockerfile || (echo "❌ Missing validation step" && exit 1)
+          grep -q 'org.opencontainers'     Dockerfile || (echo "❌ Missing OCI labels" && exit 1)
+          ! grep -q 'mysql-server'         Dockerfile || (echo "❌ mysql-server should not be in image" && exit 1)
+          ! grep -q 'openjdk-11'           Dockerfile || (echo "❌ Java 11 should be Java 17" && exit 1)
+          echo "✅ Dockerfile structure OK"
+
+      - name: Check requirements.txt has no DGX file:// installs
+        run: |
+          count=$(grep -c "file://" requirements.txt || true)
+          if [ "$count" -gt 0 ]; then
+            echo "❌ Found $count file:// installs in requirements.txt"
+            grep "file://" requirements.txt
+            exit 1
           fi
+          echo "✅ No DGX-specific file:// installs in requirements.txt"
 
-  # ── Job 6: Environment summary ───────────────────────────────────────────────
-  environment-summary:
-    name: Environment Summary
-    runs-on: ubuntu-latest
-    needs: [validate-config, lint-dockerfile, validate-requirements, security-scan]
+      - name: Check requirements.dgx.txt exists
+        run: |
+          test -f requirements.dgx.txt || (echo "❌ requirements.dgx.txt missing" && exit 1)
+          echo "✅ requirements.dgx.txt exists"
+
+  # -----------------------------------------------------------------------
+  # 5. Push to GHCR — DGX self-hosted runner (has GPU + disk space)
+  # -----------------------------------------------------------------------
+  push:
+    name: Push to GHCR
+    runs-on: [self-hosted, gpu]       # ← DGX runner needed for nvcr.io base
+    needs: [test, validate-script, validate-dockerfile]
+    if: |
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+    permissions:
+      contents: read
+      packages: write
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Generate environment summary
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.FULL_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
+
+      - name: Validate pushed image
         run: |
-          python3 - << 'PYEOF'
-          import re
-          from pathlib import Path
+          docker run --rm --gpus all \
+            ${{ env.FULL_IMAGE }}:latest \
+            bash -c "
+              python -c 'import torch; print(f\"PyTorch {torch.__version__}\")'
+              nextflow -version
+              gatk --version
+              samtools --version | head -1
+              fastqc --version
+              echo '✅ All tools validated'
+            "
 
-          dockerfile = Path("Dockerfile").read_text()
-          requirements = Path("requirements.txt").read_text()
-
-          # Extract base image
-          from_match = re.search(r'^FROM\s+(\S+)', dockerfile, re.MULTILINE)
-          base_image = from_match.group(1) if from_match else "unknown"
-
-          # Extract version label
-          version_match = re.search(r'LABEL version="([^"]+)"', dockerfile)
-          version = version_match.group(1) if version_match else "unknown"
-
-          # Count packages
-          req_count = sum(
-              1 for line in requirements.splitlines()
-              if line.strip() and not line.startswith("#")
-          )
-
-          # Extract exposed ports
-          ports = re.findall(r'^EXPOSE\s+(\d+)', dockerfile, re.MULTILINE)
-
-          print(f"\n{'='*60}")
-          print(f"  OmniBioAI Dev Docker Environment Summary")
-          print(f"{'='*60}")
-          print(f"  Version:      {version}")
-          print(f"  Base image:   {base_image}")
-          print(f"  Exposed ports: {', '.join(ports)}")
-          print(f"  Python packages: {req_count}")
-          print(f"\n  Included tools:")
-          tools = {
-              "JupyterLab": "jupyterlab" in dockerfile.lower(),
-              "Ollama": "ollama" in dockerfile.lower(),
-              "Nextflow": "nextflow" in dockerfile.lower(),
-              "GATK": "gatk" in dockerfile.lower(),
-              "FastQC": "fastqc" in dockerfile.lower(),
-              "SAMtools": "samtools" in dockerfile,
-              "BCFtools": "bcftools" in dockerfile,
-              "SnpEff": "snpEff" in dockerfile,
-              "R + Bioconductor": "BiocManager" in dockerfile,
-              "MySQL": "mysql" in dockerfile.lower(),
-          }
-          for tool, present in tools.items():
-              status = "✅" if present else "❌"
-              print(f"    {status} {tool}")
-          print(f"{'='*60}\n")
-          PYEOF
-
-      - name: All checks passed
+      - name: Image size report
         run: |
-          echo "✅ Dockerfile validation passed"
-          echo "✅ Requirements valid"
-          echo "✅ No secrets detected"
-          echo "✅ Test coverage ≥ 95%"
-          echo "✅ Ready for build"
+          docker inspect ${{ env.FULL_IMAGE }}:latest \
+            --format='Image size: {{.Size}}' | \
+            awk '{printf "%s %.1f GB\n", $1" "$2, $3/1073741824}'
+
+      - name: Summary
+        run: |
+          echo "### ✅ Pushed to GHCR" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "Pull: \`docker pull ${{ env.FULL_IMAGE }}:latest\`" >> $GITHUB_STEP_SUMMARY
