@@ -84,16 +84,16 @@ RUN curl -fsSL https://ollama.com/install.sh | bash \
 # 5. JupyterLab configuration
 # ==========================================================
 RUN mkdir -p /root/.jupyter \
-    && cat >> /root/.jupyter/jupyter_notebook_config.py << 'EOF'
-c.NotebookApp.ip = '0.0.0.0'
-c.NotebookApp.open_browser = False
-c.NotebookApp.allow_root = True
-c.NotebookApp.token = ''
-c.NotebookApp.password = ''
-c.ServerApp.ip = '0.0.0.0'
-c.ServerApp.open_browser = False
-c.ServerApp.allow_root = True
-EOF
+    && printf "%s\n" \
+        "c.NotebookApp.ip = '0.0.0.0'" \
+        "c.NotebookApp.open_browser = False" \
+        "c.NotebookApp.allow_root = True" \
+        "c.NotebookApp.token = ''" \
+        "c.NotebookApp.password = ''" \
+        "c.ServerApp.ip = '0.0.0.0'" \
+        "c.ServerApp.open_browser = False" \
+        "c.ServerApp.allow_root = True" \
+        >> /root/.jupyter/jupyter_notebook_config.py
 
 # ==========================================================
 # 6. Bioinformatics tools — Java + system tools
@@ -119,16 +119,12 @@ RUN curl -fsSL https://get.nextflow.io | bash \
 # ==========================================================
 # 8. GATK 4.5.0.0
 # ==========================================================
-RUN wget -q https://github.com/broadinstitute/gatk/releases/download/4.5.0.0/gatk-4.5.0.0.zip \
-    && unzip gatk-4.5.0.0.zip -d /opt \
-    && ln -s /opt/gatk-4.5.0.0/gatk /usr/local/bin/gatk \
-    && rm gatk-4.5.0.0.zip \
-    && gatk --version
+RUN curl -fsSL -o /tmp/gatk-4.5.0.0.zip     https://github.com/broadinstitute/gatk/releases/download/4.5.0.0/gatk-4.5.0.0.zip     && unzip /tmp/gatk-4.5.0.0.zip -d /opt     && ln -s /opt/gatk-4.5.0.0/gatk /usr/local/bin/gatk     && rm /tmp/gatk-4.5.0.0.zip     && gatk --version
 
 # ==========================================================
 # 9. SnpEff
 # ==========================================================
-RUN wget -q -O /tmp/snpEff_latest_core.zip \
+RUN curl -fsSL -o /tmp/snpEff_latest_core.zip \
     https://sourceforge.net/projects/snpeff/files/snpEff_latest_core.zip/download \
     && unzip /tmp/snpEff_latest_core.zip -d /opt \
     && ln -s /opt/snpEff/snpEff.jar /usr/local/bin/snpEff.jar \
