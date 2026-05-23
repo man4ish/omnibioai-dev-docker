@@ -131,4 +131,5 @@ temp/
 *.bak
 *.orig
 out/
-results/
+results/.coverage
+coverage.json
