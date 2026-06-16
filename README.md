@@ -212,7 +212,7 @@ This dev environment is designed to work alongside the
 [OmniBioAI platform](https://github.com/man4ish/omnibioai) —
 a unified AI-powered bioinformatics workbench supporting:
 
-- 97 bioinformatics plugins
+- 200+ bioinformatics plugins
 - RNA-seq, single-cell, spatial omics, variant calling
 - TES workflow execution (Slurm, K8s, AWS Batch, Azure)
 - RAG-powered literature search (PubMed + FAISS)
