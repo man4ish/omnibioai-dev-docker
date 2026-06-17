@@ -15,8 +15,8 @@ __pycache__/
 *.pyd
 *.egg-info/
 *.egg
-dist/
-build/
+**/dist
+**/build
 .eggs/
 .pytest_cache/
 .coverage
@@ -155,4 +155,12 @@ Thumbs.db
 # ================================
 # Obsolete
 # ================================
-obsolete/
+obsolete/.claude
+.claude
+coverage.json
+**/.nextflow
+**/nf-test
+**/.nf-test
+.benchmarks/
+perf_baseline.json
+**/node_modules
