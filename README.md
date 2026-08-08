@@ -3,7 +3,7 @@
 > Full AI/Bioinformatics development environment for GPU/DGX machines.
 > Built on NVIDIA PyTorch 25.10 with CUDA support.
 
-[![Docker](https://img.shields.io/badge/ghcr.io-omnibioai--dev--env-blue?logo=docker)](https://ghcr.io/man4ish/omnibioai-dev-env)
+[![Docker](https://img.shields.io/badge/ghcr.io-omnibioai--dev--env-blue?logo=docker)](https://ghcr.io/omnibioai/omnibioai-dev-env)
 [![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
 [![GPU Required](https://img.shields.io/badge/GPU-required-orange?logo=nvidia)](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
 
@@ -65,15 +65,15 @@ This is **not** part of the OmniBioAI production stack. It is not:
 
 ### Option A — Pull from GHCR (recommended)
 ```bash
-docker pull ghcr.io/man4ish/omnibioai-dev-env:latest
+docker pull ghcr.io/omnibioai/omnibioai-dev-env:latest
 bash run_ai_dev.sh
 ```
 
 ### Option B — Build locally
 ```bash
-git clone https://github.com/man4ish/omnibioai-dev-docker
+git clone https://github.com/OmniBioAI/omnibioai-dev-docker
 cd omnibioai-dev-docker
-docker build -t ghcr.io/man4ish/omnibioai-dev-env:latest .
+docker build -t ghcr.io/omnibioai/omnibioai-dev-env:latest .
 bash run_ai_dev.sh
 ```
 
@@ -209,10 +209,11 @@ sc.pl.pca_variance_ratio(adata)
 ## Part of the OmniBioAI Ecosystem
 
 This dev environment is designed to work alongside the
-[OmniBioAI platform](https://github.com/man4ish/omnibioai) —
+[OmniBioAI platform](https://github.com/OmniBioAI/omnibioai-workbench)
+(checked out locally as `omnibioai/`) —
 a unified AI-powered bioinformatics workbench supporting:
 
-- 200+ bioinformatics plugins
+- 231 enabled bioinformatics plugins
 - RNA-seq, single-cell, spatial omics, variant calling
 - TES workflow execution (Slurm, K8s, AWS Batch, Azure)
 - RAG-powered literature search (PubMed + FAISS)
@@ -234,5 +235,5 @@ If you use this environment in your research, please cite:
 ```
 OmniBioAI Dev Environment (2025)
 Manish Kumar
-https://github.com/man4ish/omnibioai-dev-docker
+https://github.com/OmniBioAI/omnibioai-dev-docker
 ```
