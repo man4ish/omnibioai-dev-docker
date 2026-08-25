@@ -4,7 +4,7 @@
 > Built on NVIDIA PyTorch 25.10 with CUDA support.
 
 [![Docker](https://img.shields.io/badge/ghcr.io-omnibioai--dev--env-blue?logo=docker)](https://ghcr.io/omnibioai/omnibioai-dev-env)
-[![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
+![License](https://img.shields.io/badge/license-Apache%202.0-green)
 [![GPU Required](https://img.shields.io/badge/GPU-required-orange?logo=nvidia)](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html)
 
 ---
@@ -57,7 +57,8 @@ This is **not** part of the OmniBioAI production stack. It is not:
 - NVIDIA GPU (A100, H100, or DGX system recommended)
 - [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) installed on host
 - Docker with GPU support
-- 50GB+ free disk space
+- 50GB+ free disk space for the image build; plan substantially more for
+  CUDA layers, R/Bioconductor packages, model caches, and datasets
 
 ---
 
@@ -91,6 +92,11 @@ Options:
   --help       Show help
 ```
 
+`--build` builds the image from the current directory and requires access to
+the NVIDIA base image and all build dependencies. Without it, the launcher
+uses a local image when available, otherwise pulls from GHCR and falls back
+to a local build if the pull fails.
+
 This launches an interactive container with:
 - Full GPU access (`--gpus all`)
 - Shared memory for PyTorch DataLoader (`--ipc=host`)
@@ -99,6 +105,23 @@ This launches an interactive container with:
 - Current directory mounted as `/workspace`
 - JupyterLab on port `8888`
 - Ollama server on port `11434`
+
+The launcher removes any existing container named `omnibio_dev_foundry`
+before starting a new one. The current directory is mounted at `/workspace`,
+so work saved there remains on the host. After ending a session, resume the
+same container with:
+
+```bash
+docker start -ai omnibio_dev_foundry
+```
+
+### Security note
+
+Jupyter is configured without a token or password for local convenience, and
+the launcher publishes its port on all host interfaces by default. Do not
+expose port `8888` directly to an untrusted network. Prefer a firewall or an
+SSH tunnel, or modify `run_ai_dev.sh` to bind the host side to
+`127.0.0.1` and configure Jupyter authentication for shared environments.
 
 ### Start JupyterLab:
 ```bash
@@ -153,12 +176,16 @@ If CUDA returns `False`, verify:
 ## HuggingFace Authentication
 
 ```bash
-# Inside container
+# Inside the container (recommended)
 huggingface-cli login
 
 # Or via environment variable
 export HUGGINGFACE_TOKEN=hf_xxxxxxxxxxxxxxxxxxxxx
 ```
+
+The launcher does not currently forward a host-side `HUGGINGFACE_TOKEN`
+environment variable automatically. Set it inside the container or update
+the launcher to pass it explicitly with Docker's `-e` option.
 
 ---
 
@@ -213,7 +240,8 @@ This dev environment is designed to work alongside the
 (checked out locally as `omnibioai/`) —
 a unified AI-powered bioinformatics workbench supporting:
 
-- 231 enabled bioinformatics plugins
+- 231 enabled bioinformatics plugins (platform snapshot; this count changes
+  as plugins are added or retired)
 - RNA-seq, single-cell, spatial omics, variant calling
 - TES workflow execution (Slurm, K8s, AWS Batch, Azure)
 - RAG-powered literature search (PubMed + FAISS)
@@ -224,7 +252,9 @@ a unified AI-powered bioinformatics workbench supporting:
 
 ## License
 
-Apache License 2.0 — see [LICENSE](LICENSE)
+Apache License 2.0. This repository currently does not include a `LICENSE`
+file; add the license file before distributing the repository as a licensed
+release.
 
 ---
 
